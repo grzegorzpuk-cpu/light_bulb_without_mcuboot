@@ -1,0 +1,32 @@
+name: Build Matter Light Bulb
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+        with:
+          path: app
+
+      - name: Initialize NCS workspace and update
+        run: |
+          mkdir workspace
+          cd workspace
+          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1
+          west update --narrow -o=dirj1
+
+      - name: Build project
+        run: |
+          cd app
+          west build -b nrf52840dk/nrf52840 --sysbuild
+        env:
+          ZEPHYR_BASE: ${{ github.workspace }}/workspace/zephyr
