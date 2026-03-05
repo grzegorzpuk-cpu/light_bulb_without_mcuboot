@@ -2,39 +2,60 @@ name: Build Matter Light Bulb
 
 on:
   push:
-    branches: [ "**" ]
+    branches: ["**"]
   pull_request:
-    branches: [ "**" ]
+    branches: ["**"]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/nrfconnect/sdk-nrf-toolchain:v3.1.1
+
+    defaults:
+      run:
+        shell: bash
+
     steps:
-      - name: Checkout the repository
+      - name: Checkout project
         uses: actions/checkout@v4
         with:
-          path: app
+          path: project
 
-      - name: debug env
-        run: |
-          env
-          which python3 || echo "no python3"
-          python3 -m pip list || echo "no pip list"
-          find / -name "west" -type f -executable 2>/dev/null || echo "no west found"
-          ls -la /opt || echo "no opt"
+      - name: Cache NCS west modules
+        uses: actions/cache@v4
+        with:
+          path: /workdir/ncs
+          key: ncs-v3.1.1-${{ runner.os }}
+          restore-keys: |
+            ncs-v3.1.1-
 
-      - name: Initialize NCS workspace and update
+      - name: Initialize NCS workspace
         run: |
-          mkdir workspace
-          cd workspace
-          west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1
-          west update --narrow -o=dirj1
+          if [ ! -d "/workdir/ncs/.west" ]; then
+            west init -m https://github.com/nrfconnect/sdk-nrf --mr v3.1.1 /workdir/ncs
+            cd /workdir/ncs && west update --narrow -o=--depth=1
+            west zephyr-export
+          else
+            echo "NCS already cached, skipping west init/update"
+          fi
 
-      - name: Build project
+      - name: Build for nRF52840DK
         run: |
-          cd app
-          west build -b nrf52840dk/nrf52840 --sysbuild
-        env:
-          ZEPHYR_BASE: ${{ github.workspace }}/workspace/zephyr
+          cd /workdir/ncs
+          west build \
+            -b nrf52840dk/nrf52840 \
+            "$(pwd)/../../../__w/light_bulb_without_mcuboot/light_bulb_without_mcuboot/project" \
+            --sysbuild \
+            -d /workdir/build
+
+      - name: Upload firmware artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: matter-nrf52840-firmware
+          path: |
+            /workdir/build/zephyr/zephyr.hex
+            /workdir/build/zephyr/zephyr.elf
+            /workdir/build/merged.hex
+          retention-days: 30
