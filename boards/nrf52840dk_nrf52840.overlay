@@ -5,9 +5,6 @@
  */
 
 / {
-	chosen {
-		nordic,pm-ext-flash = &mx25r64;
-	};
 
 	/*
 	* By default, PWM module is only configured for led0 (LED1 on the board).
