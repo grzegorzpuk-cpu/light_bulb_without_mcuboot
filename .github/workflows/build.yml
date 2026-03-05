@@ -17,6 +17,14 @@ jobs:
         with:
           path: app
 
+      - name: debug env
+        run: |
+          env
+          which python3 || echo "no python3"
+          python3 -m pip list || echo "no pip list"
+          find / -name "west" -type f -executable 2>/dev/null || echo "no west found"
+          ls -la /opt || echo "no opt"
+
       - name: Initialize NCS workspace and update
         run: |
           mkdir workspace
